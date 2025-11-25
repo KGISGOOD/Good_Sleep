@@ -49,10 +49,7 @@ You only need a **modern web browser**, such as:
 
 ### ▶️ How to Run
 
-1. **Clone this repository** or download the `sleep_cycle_calculator.html` file.
-2. Locate the `sleep_cycle_calculator.html` file on your computer.
-3. **Double-click** the file.
-4. Your default web browser will open, and the application will be fully functional immediately.
+[Sleep Cycle Calculator web](https://kgisgood.github.io/Good_Sleep/sleep.html)
 
 ---
 
@@ -84,10 +81,3 @@ Each recommended time is calculated as:
 > base time ± (90 minutes × number of cycles) [+ 15-minute latency if enabled]
 
 ---
-
-## 📄 File Structure
-
-```text
-.
-├── sleep_cycle_calculator.html   # The single, all-in-one application file
-└── README.md                     # Project documentation
