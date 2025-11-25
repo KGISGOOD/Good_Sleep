@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好眠週期計算器</title>
+    <!-- 載入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 確保字體和基本背景 */
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background-color: #0f172a; /* bg-slate-900 */
+            color: #f1f5f9; /* text-slate-100 */
+        }
+        /* 隱藏輸入框的上下箭頭 */
+        input[type=text] {
+            -moz-appearance: textfield;
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="p-4 flex flex-col items-center relative">
+
+    <!-- 語言選擇器 -->
+    <div class="absolute top-4 right-4 z-10">
+        <select id="language-selector" class="bg-slate-700 text-sm text-white p-2 rounded-lg border border-slate-600 focus:ring-2 focus:ring-purple-500">
+            <option value="zh-TW">中文</option>
+            <option value="en-US">English</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+        </select>
+    </div>
+
+    <div id="app-container" class="w-full max-w-md mt-10">
+
+        <!-- 標題區 -->
+        <div class="mb-6 flex items-center justify-center space-x-2 py-4">
+            <span class="text-purple-400 text-2xl">🌙</span>
+            <h1 id="app-title" class="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                好眠週期計算
+            </h1>
+        </div>
+
+        <!-- 功能切換按鈕 -->
+        <div class="grid grid-cols-3 gap-2 p-1 bg-slate-800 rounded-xl" id="mode-selector">
+        </div>
+
+        <!-- 輸入區塊 -->
+        <div class="bg-slate-800/50 p-6 rounded-2xl border border-slate-700/50 backdrop-blur-sm mt-6">
+            <div id="input-area">
+            </div>
+
+            <!-- 入睡時間開關 -->
+            <div id="latency-toggle" class="mt-8 flex items-center justify-center space-x-3 bg-slate-900/50 p-3 rounded-lg cursor-pointer hover:bg-slate-900 transition-colors" onclick="toggleLatency()">
+            </div>
+            <p id="latency-hint" class="text-xs text-center text-slate-500 mt-2 hidden">
+               *計算結果將包含從躺下到實際入睡的預估時間
+            </p>
+        </div>
+
+        <!-- 結果列表 -->
+        <div class="space-y-3 pb-10 mt-6">
+            <h2 class="text-lg font-semibold text-slate-200 px-2 flex items-center justify-between">
+                <span id="results-title">建議時間</span>
+                <span id="result-hint" class="text-xs font-normal text-slate-400 bg-slate-800 px-2 py-1 rounded"></span>
+            </h2>
+
+            <div id="results-list" class="space-y-3">
+            </div>
+        </div>
+        
+        <!-- 底部說明 -->
+        <div id="app-footer" class="text-xs text-slate-600 text-center max-w-xs leading-relaxed">
+            一個完整的睡眠週期約為 90 分鐘。在週期結束時醒來，大腦最清醒，能有效避免起床氣與疲倦感。
+        </div>
+
+    </div>
+
+    <script>
+        // --- 翻譯資料 ---
+        const translations = {
+            'zh-TW': {
+                lang_name: '繁體中文', title: '好眠週期計算',
+                mode_sleep: '幾點睡覺', mode_wake: '我要起床', mode_now: '現在睡覺',
+                label_wake: '您預計幾點起床？', label_sleep: '您預計幾點上床睡覺？', label_current_time: '目前時間',
+                label_hour: '小時', label_minute: '分鐘',
+                latency_label: '增加 15 分鐘入睡緩衝', latency_hint: '*計算結果將包含從躺下到實際入睡的預估時間',
+                results_title: '建議時間', hint_wake: '您應該在這些時間躺下', hint_sleep: '您應該在這些時間起床',
+                cycles: '個週期', hours: '小時',
+                status_short_1: '嚴重不足', status_desc_1: '非常危險，長期將損害健康',
+                status_short_2: '勉強接受', status_desc_2: '有點危險，不建議長期持續',
+                status_short_3: '睡眠充足', status_desc_3: '安全無疑，精神飽滿',
+                footer: '一個完整的睡眠週期約為 90 分鐘。在週期結束時醒來，大腦最清醒，能有效避免起床氣與疲倦感。'
+            },
+            'en-US': {
+                lang_name: 'English', title: 'Sleep Cycle Calculator',
+                mode_sleep: 'When to Sleep', mode_wake: 'When to Wake', mode_now: 'Sleep Now',
+                label_wake: 'When do you plan to wake up?', label_sleep: 'When do you plan to go to bed?', label_current_time: 'Current Time',
+                label_hour: 'Hour', label_minute: 'Minute',
+                latency_label: 'Add 15 min sleep latency', latency_hint: '*Results include estimated time from lying down to falling asleep.',
+                results_title: 'Recommended Times', hint_wake: 'You should lie down at these times', hint_sleep: 'You should wake up at these times',
+                cycles: 'cycles', hours: 'hours',
+                status_short_1: 'Critically Low', status_desc_1: 'Highly dangerous, can damage health long-term',
+                status_short_2: 'Barely Acceptable', status_desc_2: 'Slightly risky, not recommended long-term',
+                status_short_3: 'Adequate Sleep', status_desc_3: 'Safe and sound, full of energy',
+                footer: 'A full sleep cycle is about 90 minutes. Waking at the end of a cycle, the brain is clearest, effectively avoiding grogginess and fatigue.'
+            },
+            'ja-JP': {
+                lang_name: '日本語', title: '熟睡サイクル計算',
+                mode_sleep: '就寝時間', mode_wake: '起床時間', mode_now: '今すぐ寝る',
+                label_wake: '何時に起床予定ですか？', label_sleep: '何時に寝る予定ですか？', label_current_time: '現在時刻',
+                label_hour: '時', label_minute: '分',
+                latency_label: '15分間の入眠潜時を追加', latency_hint: '*横になってから実際に寝るまでの推定時間を含みます。',
+                results_title: '推奨時間', hint_wake: 'この時間に横になるべきです', hint_sleep: 'この時間に起きるべきです',
+                cycles: 'サイクル', hours: '時間',
+                status_short_1: '深刻な不足', status_desc_1: '非常に危険、長期的に健康を損なう恐れがあります',
+                status_short_2: 'かろうじて許容', status_desc_2: 'やや危険、長期継続は非推奨',
+                status_short_3: '十分な睡眠', status_desc_3: '安全で確実、精力満々',
+                footer: '完全な睡眠サイクルは約90分です。サイクルの終わりに目覚めると、脳が最も覚醒し、眠気や疲労感を効果的に防ぐことができます。'
+            },
+            'ko-KR': {
+                lang_name: '한국어', title: '수면 주기 계산기',
+                mode_sleep: '취침 시간', mode_wake: '기상 시간', mode_now: '지금 취침',
+                label_wake: '몇 시에 일어날 예정인가요?', label_sleep: '몇 시에 잠자리에 들 예정인가요?', label_current_time: '현재 시간',
+                label_hour: '시', label_minute: '분',
+                latency_label: '15분 수면 대기시간 추가', latency_hint: '*누운 후 실제 잠들기까지의 예상 시간이 포함됩니다.',
+                results_title: '권장 시간', hint_wake: '이 시간에 누워야 합니다', hint_sleep: '이 시간에 일어나야 합니다',
+                cycles: '주기', hours: '시간',
+                status_short_1: '심각한 부족', status_desc_1: '장기적으로 건강을 해칠 수 있는 매우 위험한 상태',
+                status_short_2: '간신히 허용', status_desc_2: '장기적으로는 권장되지 않는 약간 위험한 상태',
+                status_short_3: '충분한 수면', status_desc_3: '안전하고 확실하며, 활력 넘침',
+                footer: '완전한 수면 주기는 약 90분입니다. 주기 끝에 깨어나면 뇌가 가장 맑아져 멍함과 피로를 효과적으로 방지할 수 있습니다.'
+            }
+        };
+
+        // 取得翻譯文字
+        const getText = (key) => {
+            return translations[language][key] || key;
+        };
+
+        // --- 應用程式狀態 (State) ---
+        let language = 'zh-TW'; // 預設為繁體中文
+        let mode = 'wake'; // 'wake', 'sleep', 'now'
+        let inputTime = '07:00';
+        let useLatency = true;
+        let results = [];
+        let currentTime = new Date();
+        let timer = null;
+
+        // --- DOM 元素引用 ---
+        const langSelector = document.getElementById('language-selector');
+        const appTitle = document.getElementById('app-title');
+        const modeSelector = document.getElementById('mode-selector');
+        const inputArea = document.getElementById('input-area');
+        const latencyToggle = document.getElementById('latency-toggle');
+        const latencyHint = document.getElementById('latency-hint');
+        const resultsTitle = document.getElementById('results-title');
+        const resultHint = document.getElementById('result-hint');
+        const resultsList = document.getElementById('results-list');
+        const appFooter = document.getElementById('app-footer');
+
+
+        // --- 輔助函式 ---
+
+        // 時間格式化 (12 小時制 AM/PM)
+        const formatTime = (date) => {
+            if (isNaN(date.getTime())) return '--:--';
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; 
+            const strMinutes = minutes < 10 ? '0' + minutes : minutes;
+            return `${hours}:${strMinutes} ${ampm}`;
+        };
+
+        // 檢查並限制輸入為數字 (0-9)
+        const sanitizeInput = (val) => {
+            return val.replace(/\D/g, '').substring(0, 2);
+        };
+        
+        // 處理小時變更
+        const handleHourChange = (e) => {
+            let val = sanitizeInput(e.target.value);
+            if (val !== '' && parseInt(val) > 23) {
+                val = '23'; // 限制最大 23
+            }
+            const currentMinute = inputTime.split(':')[1] || '00';
+            inputTime = `${val}:${currentMinute}`;
+        };
+
+        // 處理分鐘變更
+        const handleMinuteChange = (e) => {
+            let val = sanitizeInput(e.target.value);
+            if (val !== '' && parseInt(val) > 59) {
+                val = '59'; // 限制最大 59
+            }
+            const currentHour = inputTime.split(':')[0] || '00';
+            inputTime = `${currentHour}:${val}`;
+        };
+
+        // 失去焦點時自動補零並觸發計算
+        const handleBlur = (type) => {
+            let [h, m] = inputTime.split(':');
+            
+            if (type === 'hour') {
+                if (h === '' || isNaN(parseInt(h))) h = '00';
+                else h = parseInt(h).toString().padStart(2, '0');
+            }
+            
+            if (type === 'minute') {
+                if (m === '' || isNaN(parseInt(m))) m = '00';
+                else m = parseInt(m).toString().padStart(2, '0');
+            }
+
+            inputTime = `${h}:${m}`;
+            // 重新渲染輸入框以顯示補零結果
+            renderInputArea(); 
+            // 觸發計算
+            calculateCycles();
+        };
+
+        // --- 核心計算邏輯 ---
+        const calculateCycles = () => {
+            let baseTime = new Date();
+            const latencyMinutes = useLatency ? 15 : 0;
+            const cycleLength = 90; // 90分鐘一個週期
+
+            if (mode === 'now') {
+                baseTime = new Date();
+            } else {
+                const [hoursStr, minutesStr] = inputTime.split(':');
+                const hours = parseInt(hoursStr);
+                const minutes = parseInt(minutesStr);
+                
+                if (isNaN(hours) || isNaN(minutes) || hoursStr === '' || minutesStr === '') {
+                    results = [];
+                    renderResults();
+                    return;
+                }
+                
+                baseTime.setHours(hours, minutes, 0, 0);
+            }
+
+            const calculatedResults = [];
+
+            for (let i = 1; i <= 6; i++) {
+                let resultDate = new Date(baseTime.getTime());
+                let totalMinutesChange = 0;
+
+                if (mode === 'wake') {
+                    // 倒推睡覺時間：起床時間 - (週期 * 90) - 入睡時間
+                    totalMinutesChange = -(i * cycleLength) - latencyMinutes;
+                } else {
+                    // 往後推起床時間：睡覺時間 + 入睡時間 + (週期 * 90)
+                    totalMinutesChange = (i * cycleLength) + latencyMinutes;
+                }
+
+                resultDate.setMinutes(resultDate.getMinutes() + totalMinutesChange);
+                
+                let status = { color: '', textKey: '', descriptionKey: '', icon: '' };
+                
+                if (i <= 2) {
+                    status = {
+                        color: 'bg-red-500/10 border-red-500/50 text-red-200',
+                        badge: 'bg-red-500 text-white',
+                        textKey: 'status_short_1',
+                        descriptionKey: 'status_desc_1',
+                        icon: '⚠️' 
+                    };
+                } else if (i <= 4) {
+                    status = {
+                        color: 'bg-orange-500/10 border-orange-500/50 text-orange-200',
+                        badge: 'bg-orange-500 text-white',
+                        textKey: 'status_short_2',
+                        descriptionKey: 'status_desc_2',
+                        icon: 'ℹ️' 
+                    };
+                } else {
+                    status = {
+                        color: 'bg-emerald-500/10 border-emerald-500/50 text-emerald-200',
+                        badge: 'bg-emerald-500 text-white',
+                        textKey: 'status_short_3',
+                        descriptionKey: 'status_desc_3',
+                        icon: '✅' 
+                    };
+                }
+
+                calculatedResults.push({
+                    cycles: i,
+                    time: formatTime(resultDate),
+                    duration: (i * 1.5).toFixed(1), // 90min = 1.5hr
+                    status: status
+                });
+            }
+
+            calculatedResults.sort((a, b) => b.cycles - a.cycles);
+            results = calculatedResults;
+            renderResults();
+        };
+
+
+        // --- UI 渲染函式 ---
+
+        // 渲染模式選擇按鈕
+        const renderModeSelector = () => {
+            const modes = [
+                { id: 'sleep', key: 'mode_sleep', icon: '🛏️' },
+                { id: 'wake', key: 'mode_wake', icon: '☀️' },
+                { id: 'now', key: 'mode_now', icon: '⏰' }
+            ];
+
+            modeSelector.innerHTML = modes.map(m => `
+                <button
+                    data-mode="${m.id}"
+                    class="py-2 px-1 rounded-lg text-sm font-medium transition-all flex flex-col items-center justify-center gap-1 ${
+                        mode === m.id ? 'bg-purple-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'
+                    }"
+                    onclick="setAppMode('${m.id}')"
+                >
+                    <span class="text-lg">${m.icon}</span>
+                    ${getText(m.key)}
+                </button>
+            `).join('');
+        };
+
+        // 渲染輸入區域 (時間輸入或當前時間)
+        const renderInputArea = () => {
+            inputArea.innerHTML = '';
+            
+            if (mode === 'now') {
+                inputArea.innerHTML = `
+                    <div class="text-center py-2">
+                        <p class="text-slate-400 text-sm mb-1">${getText('label_current_time')}</p>
+                        <p id="current-time-display" class="text-3xl font-mono font-bold text-white tracking-wider">
+                            ${currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                    </div>
+                `;
+            } else {
+                const [h, m] = inputTime.split(':');
+                const labelKey = mode === 'wake' ? 'label_wake' : 'label_sleep';
+
+                inputArea.innerHTML = `
+                    <div class="flex flex-col items-center">
+                        <label class="text-slate-400 text-sm mb-4">
+                            ${getText(labelKey)}
+                        </label>
+                        
+                        <div class="flex items-center justify-center space-x-2 bg-slate-900 border-2 border-slate-700 rounded-2xl p-4 shadow-inner focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all">
+                            <div class="relative">
+                                <input
+                                    id="hour-input"
+                                    type="text"
+                                    inputmode="numeric"
+                                    value="${h}"
+                                    class="w-20 bg-transparent text-white text-5xl font-mono text-center focus:outline-none placeholder-slate-600"
+                                    placeholder="HH"
+                                    maxlength="2"
+                                />
+                                <span class="absolute -bottom-4 left-0 w-full text-center text-[10px] text-slate-500 tracking-wider">${getText('label_hour')}</span>
+                            </div>
+                            
+                            <span class="text-4xl text-slate-500 font-light pb-2">:</span>
+                            
+                            <div class="relative">
+                                <input
+                                    id="minute-input"
+                                    type="text"
+                                    inputmode="numeric"
+                                    value="${m}"
+                                    class="w-20 bg-transparent text-white text-5xl font-mono text-center focus:outline-none placeholder-slate-600"
+                                    placeholder="MM"
+                                    maxlength="2"
+                                />
+                                <span class="absolute -bottom-4 left-0 w-full text-center text-[10px] text-slate-500 tracking-wider">${getText('label_minute')}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 重新掛載事件監聽器
+                document.getElementById('hour-input').addEventListener('input', handleHourChange);
+                document.getElementById('hour-input').addEventListener('blur', () => handleBlur('hour'));
+                document.getElementById('hour-input').addEventListener('focus', (e) => e.target.select());
+
+                document.getElementById('minute-input').addEventListener('input', handleMinuteChange);
+                document.getElementById('minute-input').addEventListener('blur', () => handleBlur('minute'));
+                document.getElementById('minute-input').addEventListener('focus', (e) => e.target.select());
+            }
+        };
+        
+        // 渲染入睡緩衝開關
+        const renderLatencyToggle = () => {
+            const toggleClass = useLatency ? 'bg-purple-600' : 'bg-slate-600';
+            const switchClass = useLatency ? 'translate-x-6' : 'translate-x-0';
+
+            latencyToggle.innerHTML = `
+                <div class="w-12 h-6 rounded-full p-1 transition-colors ${toggleClass}">
+                    <div class="w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${switchClass}"></div>
+                </div>
+                <span class="text-sm text-slate-300 select-none">
+                    ${getText('latency_label')}
+                </span>
+            `;
+            
+            latencyHint.textContent = getText('latency_hint');
+            latencyHint.classList.toggle('hidden', !useLatency);
+        };
+
+        // 渲染計算結果列表
+        const renderResults = () => {
+            resultsList.innerHTML = '';
+            
+            resultsTitle.textContent = getText('results_title');
+            resultHint.textContent = mode === 'wake' ? getText('hint_wake') : getText('hint_sleep');
+            appTitle.textContent = getText('title');
+            appFooter.textContent = getText('footer');
+
+
+            results.forEach(item => {
+                const resultItem = document.createElement('div');
+                resultItem.className = `relative border-l-4 rounded-r-xl p-4 transition-all hover:brightness-110 ${item.status.color}`;
+                resultItem.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${item.status.badge}">
+                                ${item.cycles} ${getText('cycles')}
+                            </span>
+                            <span class="text-xs opacity-70">(${item.duration} ${getText('hours')})</span>
+                        </div>
+                        <div class="flex items-center space-x-1 text-xs font-medium opacity-90">
+                            <span>${item.status.icon}</span>
+                            <span>${getText(item.status.textKey)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-end">
+                        <div class="text-3xl font-bold tracking-tight">
+                            ${item.time}
+                        </div>
+                        <div class="text-xs max-w-[50%] text-right opacity-80 leading-tight">
+                            ${getText(item.status.descriptionKey)}
+                        </div>
+                    </div>
+                `;
+                resultsList.appendChild(resultItem);
+            });
+        };
+
+        // 總體渲染函式
+        const renderApp = () => {
+            renderModeSelector();
+            renderInputArea();
+            renderLatencyToggle();
+            // renderResults() 在 calculateCycles() 內部調用
+            calculateCycles();
+        };
+
+        // --- 事件處理函式 ---
+        
+        window.setAppMode = (newMode) => {
+            mode = newMode;
+            renderApp();
+        };
+
+        window.toggleLatency = () => {
+            useLatency = !useLatency;
+            renderLatencyToggle();
+            calculateCycles();
+        };
+
+        // 語言切換處理
+        langSelector.addEventListener('change', (e) => {
+            language = e.target.value;
+            renderApp();
+        });
+        
+        // --- 初始化與主循環 ---
+
+        const init = () => {
+            // 1. 設置定時器更新現在時間 (模擬 React useEffect)
+            timer = setInterval(() => {
+                currentTime = new Date();
+                if (mode === 'now') {
+                    // 如果在 'now' 模式，每秒更新顯示時間和計算結果
+                    const display = document.getElementById('current-time-display');
+                    if (display) {
+                         display.textContent = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    }
+                    calculateCycles();
+                }
+            }, 1000);
+            
+            // 2. 初始渲染
+            renderApp();
+        };
+
+        // 確保 DOM 載入後執行
+        window.onload = init;
+    </script>
+
+</body>
+</html>
