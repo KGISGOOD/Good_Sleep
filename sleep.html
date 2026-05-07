@@ -146,7 +146,7 @@
 
         // --- 應用程式狀態 (State) ---
         let language = 'zh-TW'; // 預設為繁體中文
-        let mode = 'wake'; // 'wake', 'sleep', 'now'
+        let mode = 'now'; // 'wake', 'sleep', 'now'
         let inputTime = '07:00';
         let useLatency = true;
         let results = [];
@@ -312,8 +312,8 @@
         const renderModeSelector = () => {
             const modes = [
                 { id: 'sleep', key: 'mode_sleep', icon: '🛏️' },
-                { id: 'wake', key: 'mode_wake', icon: '☀️' },
-                { id: 'now', key: 'mode_now', icon: '⏰' }
+                { id: 'now', key: 'mode_now', icon: '⏰' },
+                { id: 'wake', key: 'mode_wake', icon: '☀️' }
             ];
 
             modeSelector.innerHTML = modes.map(m => `
